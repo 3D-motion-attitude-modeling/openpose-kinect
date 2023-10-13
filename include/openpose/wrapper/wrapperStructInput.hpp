@@ -14,7 +14,7 @@ namespace op
     struct OP_API WrapperStructInput
     {
         /**
-         * Desired type of producer (FlirCamera, ImageDirectory, IPCamera, Video, Webcam, None, etc.).
+         * Desired type of producer (FlirCamera, KinectCamre, ImageDirectory, IPCamera, Video, Webcam, None, etc.).
          * Default: ProducerType::None.
          */
         ProducerType producerType;

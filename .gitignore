@@ -100,6 +100,8 @@ distribute/
 ######################### 3rd-party Folders and Zip Files #########################
 3rdparty/caffe/.git
 3rdparty/caffe/.github
+3rdparty/pybind11/.git
+3rdparty/pybind11/.github
 3rdparty/asio/
 3rdparty/eigen/
 3rdparty/windows/caffe/

@@ -201,6 +201,49 @@ namespace op
         }
     }
 
+    ProducerType flagsToProducerType_test(
+        const String& imageDirectory, const String& videoPath, const String& ipCameraPath,
+        const int webcamIndex, const bool flirCamera, const bool kinectCamera)
+    {
+        try
+        {
+            opLog("", Priority::Low, __LINE__, __FUNCTION__, __FILE__);
+            const std::string& imageDirectoryStd = imageDirectory.getStdString();
+            const std::string& videoPathStd = videoPath.getStdString();
+            const std::string& ipCameraPathStd = ipCameraPath.getStdString();
+            // Avoid duplicates (e.g., selecting at the time camera & video)
+            if (int(!imageDirectoryStd.empty()) + int(!videoPathStd.empty()) + int(webcamIndex > 0)
+                + int(flirCamera) + int(kinectCamera) + int(!ipCameraPathStd.empty()) > 1)
+                error("Selected simultaneously"
+                      " image directory (seletected: " + (imageDirectoryStd.empty() ? "no" : imageDirectoryStd) + "),"
+                      " video (seletected: " + (videoPathStd.empty() ? "no" : videoPathStd) + "),"
+                      " camera (selected: " + (webcamIndex > 0 ? std::to_string(webcamIndex) : "no") + "),"
+                      " flirCamera (selected: " + (flirCamera ? "yes" : "no") + ","
+                      " kinectCamera (selected: " + (kinectCamera ? "yes" : "no") + ","
+                      " and/or IP camera (selected: " + (ipCameraPathStd.empty() ? "no" : ipCameraPathStd) + ")."
+                      " Please, select only one.", __LINE__, __FUNCTION__, __FILE__);
+
+            // Get desired ProducerType
+            if (!imageDirectoryStd.empty())
+                return ProducerType::ImageDirectory;
+            else if (!videoPathStd.empty())
+                return ProducerType::Video;
+            else if (!ipCameraPathStd.empty())
+                return ProducerType::IPCamera;
+            else if (flirCamera)
+                return ProducerType::FlirCamera;
+            else if (kinectCamera)
+                return ProducerType::KinectCamera;
+            else
+                return ProducerType::Webcam;
+        }
+        catch (const std::exception& e)
+        {
+            error(e.what(), __LINE__, __FUNCTION__, __FILE__);
+            return ProducerType::Webcam;
+        }
+    }
+
     std::pair<ProducerType, String> flagsToProducer(
         const String& imageDirectory, const String& videoPath, const String& ipCameraPath,
         const int webcamIndex, const bool flirCamera, const int flirCameraIndex)
@@ -220,6 +263,42 @@ namespace op
             // Flir camera
             else if (type == ProducerType::FlirCamera)
                 return std::make_pair(ProducerType::FlirCamera, String(std::to_string(flirCameraIndex)));
+            // Webcam
+            else if (type == ProducerType::Webcam)
+                return std::make_pair(ProducerType::Webcam, String(std::to_string(webcamIndex)));
+            // else
+            error("Undefined Producer selected.", __LINE__, __FUNCTION__, __FILE__);
+            return std::make_pair(ProducerType::None, "");
+        }
+        catch (const std::exception& e)
+        {
+            error(e.what(), __LINE__, __FUNCTION__, __FILE__);
+            return std::make_pair(ProducerType::None, "");
+        }
+    }
+
+    std::pair<ProducerType, String> flagsToProducer_test(
+        const String& imageDirectory, const String& videoPath, const String& ipCameraPath,
+        const int webcamIndex, const bool flirCamera, const int flirCameraIndex, const bool kinectCamera, const int kinectCameraIndex)
+    {
+        try
+        {
+            opLog("", Priority::Low, __LINE__, __FUNCTION__, __FILE__);
+            const auto type = flagsToProducerType_test(
+                imageDirectory, videoPath, ipCameraPath, webcamIndex, flirCamera, kinectCamera);
+
+            if (type == ProducerType::ImageDirectory)
+                return std::make_pair(ProducerType::ImageDirectory, imageDirectory);
+            else if (type == ProducerType::Video)
+                return std::make_pair(ProducerType::Video, videoPath);
+            else if (type == ProducerType::IPCamera)
+                return std::make_pair(ProducerType::IPCamera, ipCameraPath);
+            // Flir camera
+            else if (type == ProducerType::FlirCamera)
+                return std::make_pair(ProducerType::FlirCamera, String(std::to_string(flirCameraIndex)));
+            // Kinect camera
+            else if (type == ProducerType::KinectCamera)
+                return std::make_pair(ProducerType::KinectCamera, String(std::to_string(kinectCameraIndex)));
             // Webcam
             else if (type == ProducerType::Webcam)
                 return std::make_pair(ProducerType::Webcam, String(std::to_string(webcamIndex)));

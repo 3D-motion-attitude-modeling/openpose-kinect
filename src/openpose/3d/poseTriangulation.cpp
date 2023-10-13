@@ -39,7 +39,7 @@ namespace op
                       " simultaneously. E.g., using FLIR stereo cameras (`--flir_camera`).",
                       __LINE__, __FUNCTION__, __FILE__);
             // Get number body parts and whether at least 2 cameras have keypoints
-            auto detectionMissed = 0;
+            auto detectionMissed = 0; // If 2 or more, then we have at least 2 cameras with keypoints
             auto numberBodyParts = 0;
             auto channel0Length = 0;
             for (const auto& keypoints : keypointsVector)
@@ -133,6 +133,7 @@ namespace op
                                 && reprojectionErrors[index] < reprojectionMaxAcceptable))
                         {
                             const auto baseIndex = indexesUsed[index] * lastChannelLength;
+                            // 赋予齐次坐标
                             keypoints3D[baseIndex] = xyzPoints[index].x;
                             keypoints3D[baseIndex + 1] = xyzPoints[index].y;
                             keypoints3D[baseIndex + 2] = xyzPoints[index].z;

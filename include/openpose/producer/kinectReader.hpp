@@ -1,30 +1,26 @@
-#ifndef OPENPOSE_PRODUCER_FLIR_READER_HPP
-#define OPENPOSE_PRODUCER_FLIR_READER_HPP
+#ifndef OPENPOSE_PRODUCER_KINECT_READER_HPP
+#define OPENPOSE_PRODUCER_KINECT_READER_HPP
 
 #include <openpose/core/common.hpp>
 #include <openpose/producer/producer.hpp>
-#include <openpose/producer/spinnakerWrapper.hpp>
+#include <openpose/producer/kinectWrapper.hpp>
 
 namespace op
 {
-    /**
-     * FlirReader is an abstract class to extract frames from a FLIR stereo-camera system. Its interface imitates the
-     * cv::VideoCapture class, so it can be used quite similarly to the cv::VideoCapture class. Thus,
-     * it is quite similar to VideoReader and WebcamReader.
-     */
-    class OP_API FlirReader : public Producer
+    class OP_API KinectReader : public Producer
     {
     public:
         /**
-         * Constructor of FlirReader. It opens all the available FLIR cameras
+         * Constructor of KinectReader. It opens all the available Kinect cameras
          */
-
         // cameraParametersPath is like 'models/cameraParameters/flir/'
         // 是否去畸变--undistortImage, 摄像头编号--cameraIndex（-1表示所有摄像头一同同步读取）
-        explicit FlirReader(const std::string& cameraParametersPath, const Point<int>& cameraResolution,
+        // eplicit 指定构造函数或转换函数为显式, 即它不能用于隐式转换和复制初始化
+        // const Point<int>& cameraResolution Kinect相机分辨率不能随便设置
+        explicit KinectReader(const std::string& cameraParametersPath, const Point<int>& cameraResolution,
                             const bool undistortImage = true, const int cameraIndex = -1);
 
-        virtual ~FlirReader();
+        virtual ~KinectReader();
 
         // 获取多摄像头的内外参数，在完成文件生成后可以借用Openpose内部CameraParameterReader来实现
         std::vector<Matrix> getCameraMatrices();
@@ -47,7 +43,7 @@ namespace op
 
     private:
         //辅助实现的类
-        SpinnakerWrapper mSpinnakerWrapper;
+        KinectWrapper mKinectWrapper;
 
         // 保留
         Point<int> mResolution;
@@ -59,8 +55,8 @@ namespace op
         // 获取多摄像头同一时刻的帧图像
         std::vector<Matrix> getRawFrames();
 
-        DELETE_COPY(FlirReader);
+        DELETE_COPY(KinectReader);
     };
 }
 
-#endif // OPENPOSE_PRODUCER_FLIR_READER_HPP
+#endif // OPENPOSE_PRODUCER_KINECT_READER_HPP

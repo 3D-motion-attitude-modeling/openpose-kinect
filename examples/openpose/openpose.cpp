@@ -30,9 +30,9 @@ void configureWrapper(op::Wrapper& opWrapper)
         // producerType
         op::ProducerType producerType;
         op::String producerString;
-        std::tie(producerType, producerString) = op::flagsToProducer(
+        std::tie(producerType, producerString) = op::flagsToProducer_test(
             op::String(FLAGS_image_dir), op::String(FLAGS_video), op::String(FLAGS_ip_camera), FLAGS_camera,
-            FLAGS_flir_camera, FLAGS_flir_camera_index);
+            FLAGS_flir_camera, FLAGS_flir_camera_index, FLAGS_kinect_camera, FLAGS_kinect_camera_index);
         // cameraSize
         const auto cameraSize = op::flagsToPoint(op::String(FLAGS_camera_resolution), "-1x-1");
         // outputSize
@@ -59,7 +59,7 @@ void configureWrapper(op::Wrapper& opWrapper)
                                                       FLAGS_heatmaps_add_PAFs);
         const auto heatMapScaleMode = op::flagsToHeatMapScaleMode(FLAGS_heatmaps_scale);
         // >1 camera view?
-        const auto multipleView = (FLAGS_3d || FLAGS_3d_views > 1 || FLAGS_flir_camera);
+        const auto multipleView = (FLAGS_3d || FLAGS_3d_views > 1 || FLAGS_flir_camera || FLAGS_kinect_camera);
         // Face and hand detectors
         const auto faceDetector = op::flagsToDetector(FLAGS_face_detector);
         const auto handDetector = op::flagsToDetector(FLAGS_hand_detector);
