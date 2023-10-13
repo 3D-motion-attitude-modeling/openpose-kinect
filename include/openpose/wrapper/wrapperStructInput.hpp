@@ -21,7 +21,7 @@ namespace op
 
         /**
          * Path of the producer (image directory path for ImageDirectory, video path for Video,
-         * camera index for Webcam and FlirCamera, URL for IPCamera, etc.).
+         * camera index for Webcam and FlirCamera, kinectCamera, URL for IPCamera, etc.).
          * Default: "".
          */
         String producerString;
@@ -67,7 +67,7 @@ namespace op
         bool framesRepeat;
 
         /**
-         * Camera resolution (only for Webcam and FlirCamera).
+         * Camera resolution (only for Webcam and FlirCamera, kinectCamera).
          */
         Point<int> cameraResolution;
 

@@ -39,7 +39,7 @@ namespace op
             mProperties[(unsigned int)ProducerProperty::NumberViews] = numberViews;
             auto& mNumberViews = mProperties[(unsigned int)ProducerProperty::NumberViews];
             // Camera (distortion, intrinsic, and extrinsic) parameters
-            if (mType != ProducerType::FlirCamera)
+            if (mType != ProducerType::FlirCamera && mType != ProducerType::KinectCamera)
             {
                 // Undistort image?
                 mCameraParameterReader.setUndistortImage(undistortImage);
@@ -323,7 +323,9 @@ namespace op
                 // videos (i.e., there is a frame missing), mNumberEmptyFrames allows the program to be properly
                 // closed keeping the 0-index frame counting
                 if (mNumberEmptyFrames > 2
-                    || (mType != ProducerType::FlirCamera && mType != ProducerType::IPCamera
+                    || (mType != ProducerType::FlirCamera 
+                        && mType != ProducerType::KinectCamera
+                        && mType != ProducerType::IPCamera
                         && mType != ProducerType::Webcam
                         && get(CV_CAP_PROP_POS_FRAMES) >= get(CV_CAP_PROP_FRAME_COUNT)))
                 {

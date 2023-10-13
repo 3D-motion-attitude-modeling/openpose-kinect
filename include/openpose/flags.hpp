@@ -56,9 +56,14 @@ DEFINE_int32(frame_rotate,              0,              "Rotate each frame, 4 po
 DEFINE_bool(frames_repeat,              false,          "Repeat frames when finished.");
 DEFINE_bool(process_real_time,          false,          "Enable to keep the original source frame rate (e.g., for video). If the processing time is"
                                                         " too long, it will skip frames. If it is too fast, it will slow it down.");
-DEFINE_string(camera_parameter_path,    "models/cameraParameters/flir/", "String with the folder where the camera parameters are located. If there"
+// DEFINE_string(camera_parameter_path,    "models/cameraParameters/flir/","String with the folder where the camera parameters are located. If there"
+//                                                         " is only 1 XML file (for single video, webcam, or images from the same camera), you must"
+//                                                         " specify the whole XML file path (ending in .xml).");
+// set default value for kinect reader
+DEFINE_string(camera_parameter_path,    "models/cameraParameters/kinect/","String with the folder where the camera parameters are located. If there"
                                                         " is only 1 XML file (for single video, webcam, or images from the same camera), you must"
                                                         " specify the whole XML file path (ending in .xml).");
+
 DEFINE_bool(frame_undistort,            false,          "If false (default), it will not undistort the image, if true, it will undistortionate them"
                                                         " based on the camera parameters found in `camera_parameter_path`");
 #endif // OPENPOSE_FLAGS_DISABLE_PRODUCER

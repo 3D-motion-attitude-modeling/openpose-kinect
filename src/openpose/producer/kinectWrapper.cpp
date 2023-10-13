@@ -4,7 +4,7 @@
 #include <opencv2/imgproc/imgproc.hpp> // cv::undistort, cv::initUndistortRectifyMap
 #include <openpose_private/utilities/openCvMultiversionHeaders.hpp> // OPEN_CV_IS_4_OR_HIGHER
 
-#define USE_KINECT_CAMERA
+// #define USE_KINECT_CAMERA
 
 #ifdef OPEN_CV_IS_4_OR_HIGHER
     #include <opencv2/calib3d.hpp> // cv::initUndistortRectifyMap for OpenCV 4
@@ -20,26 +20,16 @@ namespace op
 {
     #ifdef USE_KINECT_CAMERA
 
-        // 获取全部相机的序列号
-        std::vector<std::string> getSerialNumbers(const std::vector<k4a::device>& device_handles,
-                                                  const bool sorted)
+        // 获取相机的序列号
+        std::string getSerialNumber(const k4a::device& device_handle)
         {
             try
             {
                 // Get strSerialNumbers
-                std::vector<std::string> serialNumbers(device_handles.size());
-
-                for (auto i = 0u; i < serialNumbers.size(); i++)
-                {   
-                    serialNumbers[i] = deviceHandle.at(i).get_serialnum();
-                }
-
-                // Sort serial numbers
-                if (sorted)
-                    std::sort(serialNumbers.begin(), serialNumbers.end());
+                std::string serialNumber = device_handle.get_serialnum();
 
                 // Return result
-                return serialNumbers;
+                return serialNumber;
             }
             catch (k4a::error &e)
             {
@@ -474,8 +464,18 @@ namespace op
                 
                 //打印相机序列号信息
                 opLog("\nReading (and sorting by) serial numbers...", Priority::High);
-                const bool sorted = true;
-                upImpl->mSerialNumbers = getSerialNumbers(upImpl->multiCapturer.get_all_deivces(), sorted);
+                // const bool sorted = true;
+
+                upImpl->mSerialNumbers.emplace_back(getSerialNumber(upImpl->multiCapturer.get_master_device()));
+
+                if (numCameras > 1)
+                {
+                    for (auto i = 0u; i < numCameras; i++)
+                    {
+                        upImpl->mSerialNumbers.emplace_back(getSerialNumber(upImpl->multiCapturer.get_subordinate_device_by_index(i)));
+                    }
+                }
+
                 const auto& serialNumbers = upImpl->mSerialNumbers;
                 for (auto i = 0u; i < serialNumbers.size(); i++)
                     opLog("Camera " + std::to_string(i) + " serial number set to "
@@ -685,7 +685,9 @@ namespace op
 
                     upImpl->multiCapturer.deInitCapturer(); //close device handle manually
 
-                    opLog("FLIR (Point-grey) capture completed. Releasing cameras...", Priority::High);
+                    upImpl->device_indices.clear();
+
+                    opLog("capture completed. Releasing cameras...", Priority::High);
 
                     // Setting the class as released
                     upImpl->mInitialized = false;
@@ -719,7 +721,7 @@ namespace op
 
                     upImpl->device_indices.clear();
 
-                    opLog("Cameras released! Exiting program.", Priority::High);
+                    opLog("Cameras released(without initial wrapper)! Exiting program.", Priority::High);
                 }
             }
             catch (const k4a::error& e)

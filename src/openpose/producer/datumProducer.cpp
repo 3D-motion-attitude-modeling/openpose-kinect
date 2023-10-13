@@ -22,6 +22,7 @@ namespace op
                       __LINE__, __FUNCTION__, __FILE__);
             // Set frame first and step
             if (producerSharedPtr->getType() != ProducerType::FlirCamera
+                && producerSharedPtr->getType() != ProducerType::KinectCamera
                 && producerSharedPtr->getType() != ProducerType::IPCamera
                 && producerSharedPtr->getType() != ProducerType::Webcam)
             {
