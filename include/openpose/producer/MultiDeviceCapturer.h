@@ -353,6 +353,18 @@ public:
         return subordinate_devices[i];
     }
 
+    const std::vector<k4a::device> &get_all_deivces() const
+    {
+        std::vector<k4a::device> all_devices;
+        all_devices.push_back(master_device);
+        for (k4a::device &d : subordinate_devices)
+        {
+            all_devices.push_back(d);
+        }
+
+        return all_devices;
+    }
+
 private:
     // Once the constuctor finishes, devices[0] will always be the master
     k4a::device master_device;

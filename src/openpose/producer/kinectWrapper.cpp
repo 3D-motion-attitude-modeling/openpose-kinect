@@ -4,6 +4,8 @@
 #include <opencv2/imgproc/imgproc.hpp> // cv::undistort, cv::initUndistortRectifyMap
 #include <openpose_private/utilities/openCvMultiversionHeaders.hpp> // OPEN_CV_IS_4_OR_HIGHER
 
+#define USE_KINECT_CAMERA
+
 #ifdef OPEN_CV_IS_4_OR_HIGHER
     #include <opencv2/calib3d.hpp> // cv::initUndistortRectifyMap for OpenCV 4
 #endif
@@ -19,20 +21,17 @@ namespace op
     #ifdef USE_KINECT_CAMERA
 
         // 获取全部相机的序列号
-        std::vector<std::string> getSerialNumbers(const std::vector<std::uint32_t>& device_indices,
+        std::vector<std::string> getSerialNumbers(const std::vector<k4a::device>& device_handles,
                                                   const bool sorted)
         {
             try
             {
                 // Get strSerialNumbers
-                std::vector<std::string> serialNumbers(device_indices.size());
-                k4a::device deviceHandle;
+                std::vector<std::string> serialNumbers(device_handles.size());
 
                 for (auto i = 0u; i < serialNumbers.size(); i++)
                 {   
-                    deviceHandle = k4a::device::open(device_indices[i]);
-                    serialNumbers[i] = deviceHandle.get_serialnum();
-                    deviceHandle.close(); // release the handle by closing the device
+                    serialNumbers[i] = deviceHandle.at(i).get_serialnum();
                 }
 
                 // Sort serial numbers
@@ -476,7 +475,7 @@ namespace op
                 //打印相机序列号信息
                 opLog("\nReading (and sorting by) serial numbers...", Priority::High);
                 const bool sorted = true;
-                upImpl->mSerialNumbers = getSerialNumbers(upImpl->device_indices, sorted);
+                upImpl->mSerialNumbers = getSerialNumbers(upImpl->multiCapturer.get_all_deivces(), sorted);
                 const auto& serialNumbers = upImpl->mSerialNumbers;
                 for (auto i = 0u; i < serialNumbers.size(); i++)
                     opLog("Camera " + std::to_string(i) + " serial number set to "
