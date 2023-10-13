@@ -1018,7 +1018,7 @@ if (WITH_FLIR_CAMERA)
 endif (WITH_FLIR_CAMERA)
 
 if (WITH_KINECT_CAMERA)
-    set(OpenPose_3rdparty_libraries ${OpenPose_3rdparty_libraries} ${K4A_LIB})
+    set(OpenPose_3rdparty_libraries ${OpenPose_3rdparty_libraries} ${K4A_LIB} -lk4a)
 endif (WITH_KINECT_CAMERA)
 
 # Pthread

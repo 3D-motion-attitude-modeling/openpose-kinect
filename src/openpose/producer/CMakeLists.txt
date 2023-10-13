@@ -2,10 +2,12 @@ set(SOURCES_OP_PRODUCER
     datumProducer.cpp
     defineTemplates.cpp
     flirReader.cpp
+    kinectReader.cpp
     imageDirectoryReader.cpp
     ipCameraReader.cpp
     producer.cpp
     spinnakerWrapper.cpp
+    kinectWrapper.cpp
     videoCaptureReader.cpp
     videoReader.cpp
     webcamReader.cpp)

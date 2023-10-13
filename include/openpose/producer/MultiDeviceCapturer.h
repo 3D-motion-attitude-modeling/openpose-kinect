@@ -5,6 +5,7 @@
 #include <chrono>
 #include <vector>
 #include <iomanip> // std::setw
+#include <iostream>
 #include <k4a/k4a.hpp>
 
 // This is the maximum difference between when we expected an image's timestamp to be and when it actually occurred.
@@ -33,13 +34,71 @@ public:
         // Empty constructor
     }
 
-    // Set up all the devices. Note that the index order isn't necessarily preserved, because we might swap with master
-    MultiDeviceCapturer(const vector<uint32_t> &device_indices, int32_t color_exposure_usec, int32_t powerline_freq)
+    void initCapturer(const std::vector<uint32_t> &device_indices, int32_t color_exposure_usec, int32_t powerline_freq)
     {
         bool master_found = false;
         if (device_indices.size() == 0)
         {
-            cerr << "Capturer must be passed at least one camera!\n ";
+            std::cerr << "Capturer must be passed at least one camera!\n ";
+            exit(1);
+        }
+
+        for (uint32_t i : device_indices)
+        {
+            std::cout << "index all:" << device_indices.size() << std::endl;
+
+            k4a::device next_device = k4a::device::open(i); // construct a device using this index
+
+            // If you want to synchronize cameras, you need to manually set both their exposures
+            next_device.set_color_control(K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE,
+                                          K4A_COLOR_CONTROL_MODE_MANUAL,
+                                          color_exposure_usec);
+
+            // This setting compensates for the flicker of lights due to the frequency of AC power in your region. If
+            // you are in an area with 50 Hz power, this may need to be updated (check the docs for
+            // k4a_color_control_command_t)
+            
+            // Value of 1 sets the powerline compensation to 50 Hz. Value of 2 sets the powerline compensation to 60 Hz.
+            next_device.set_color_control(K4A_COLOR_CONTROL_POWERLINE_FREQUENCY,
+                                          K4A_COLOR_CONTROL_MODE_MANUAL,
+                                          powerline_freq);
+
+            // We treat the first device found with a sync out cable attached as the master. If it's not supposed to be,
+            // unplug the cable from it. Also, if there's only one device, just use it
+            if ((next_device.is_sync_out_connected() && !master_found) || device_indices.size() == 1)
+            {
+                master_device = std::move(next_device);
+                master_found = true;
+            }
+            else if (!next_device.is_sync_in_connected() && !next_device.is_sync_out_connected())
+            {
+                std::cerr << "Each device must have sync in or sync out connected!\n ";
+                exit(1);
+            }
+            else if (!next_device.is_sync_in_connected())
+            {
+                std::cerr << "Non-master camera found that doesn't have the sync in port connected!\n ";
+                exit(1);
+            }
+            else
+            {
+                subordinate_devices.emplace_back(std::move(next_device));
+            }
+        }
+        if (!master_found)
+        {
+            std::cerr << "No device with sync out connected found!\n ";
+            exit(1);
+        }
+    }
+
+    // Set up all the devices. Note that the index order isn't necessarily preserved, because we might swap with master
+    MultiDeviceCapturer(const std::vector<uint32_t> &device_indices, int32_t color_exposure_usec, int32_t powerline_freq)
+    {
+        bool master_found = false;
+        if (device_indices.size() == 0)
+        {
+            std::cerr << "Capturer must be passed at least one camera!\n ";
             exit(1);
         }
 
@@ -70,12 +129,12 @@ public:
             }
             else if (!next_device.is_sync_in_connected() && !next_device.is_sync_out_connected())
             {
-                cerr << "Each device must have sync in or sync out connected!\n ";
+                std::cerr << "Each device must have sync in or sync out connected!\n ";
                 exit(1);
             }
             else if (!next_device.is_sync_in_connected())
             {
-                cerr << "Non-master camera found that doesn't have the sync in port connected!\n ";
+                std::cerr << "Non-master camera found that doesn't have the sync in port connected!\n ";
                 exit(1);
             }
             else
@@ -85,8 +144,20 @@ public:
         }
         if (!master_found)
         {
-            cerr << "No device with sync out connected found!\n ";
+            std::cerr << "No device with sync out connected found!\n ";
             exit(1);
+        }
+    }
+
+    void deInitCapturer()
+    {
+        // Close the master device first
+        master_device.close();
+
+        // Then close all the subordinate devices
+        for (k4a::device &d : subordinate_devices)
+        {
+            d.close();
         }
     }
 
@@ -174,7 +245,7 @@ public:
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
             if (duration_ms > WAIT_FOR_SYNCHRONIZED_CAPTURE_TIMEOUT)
             {
-                cerr << "ERROR: Timedout waiting for synchronized captures\n";
+                std::cerr << "ERROR: Timedout waiting for synchronized captures\n";
                 exit(1);
             }
 
@@ -255,7 +326,7 @@ public:
                 }
                 else if (!sub_image)
                 {
-                    std::cout << "Subordinate image was bad!" << endl;
+                    std::cout << "Subordinate image was bad!" << std::endl;
                     subordinate_devices[i].get_capture(&captures[i + 1],
                                                        std::chrono::milliseconds{ K4A_WAIT_INFINITE });
                     break;
@@ -276,7 +347,7 @@ public:
         // devices[0] is the master. There are only devices.size() - 1 others. So, indices greater or equal are invalid
         if (i >= subordinate_devices.size())
         {
-            cerr << "Subordinate index too large!\n ";
+            std::cerr << "Subordinate index too large!\n ";
             exit(1);
         }
         return subordinate_devices[i];

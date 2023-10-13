@@ -9,8 +9,6 @@ namespace op
      * KinectWrapper imitates the class of SpinnakerWrapper. It decouples the final interface (meant to imitates
      * cv::VideoCapture) from the kinect SDK wrapper.
      */
-    int32_t color_exposure_usec = 8000;  // somewhat reasonable default exposure time
-    int32_t powerline_freq = 1;          // default to a 50 Hz powerline   
 
     class OP_API KinectWrapper
     {

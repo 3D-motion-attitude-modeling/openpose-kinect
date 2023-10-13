@@ -4,14 +4,12 @@
 #include <opencv2/imgproc/imgproc.hpp> // cv::undistort, cv::initUndistortRectifyMap
 #include <openpose_private/utilities/openCvMultiversionHeaders.hpp> // OPEN_CV_IS_4_OR_HIGHER
 
-# define USE_KINECT_CAMERA
-
 #ifdef OPEN_CV_IS_4_OR_HIGHER
     #include <opencv2/calib3d.hpp> // cv::initUndistortRectifyMap for OpenCV 4
 #endif
 #ifdef USE_KINECT_CAMERA
     #include <k4a/k4a.h>
-    #include "MultiDeviceCapturer.h"
+    #include <openpose/producer/MultiDeviceCapturer.h>
 #endif
 
 #include <openpose/3d/cameraParameterReader.hpp>
@@ -86,6 +84,7 @@ namespace op
         {
             k4a_device_configuration_t camera_config = get_default_config();
             camera_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
+            constexpr uint32_t MIN_TIME_BETWEEN_DEPTH_CAMERA_PICTURES_USEC = 160;
 
             // Two depth images should be seperated by MIN_TIME_BETWEEN_DEPTH_CAMERA_PICTURES_USEC to ensure the depth imaging
             // sensor doesn't interfere with the other. To accomplish this the master depth image captures
@@ -102,6 +101,7 @@ namespace op
         {
             k4a_device_configuration_t camera_config = get_default_config();
             camera_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
+            constexpr uint32_t MIN_TIME_BETWEEN_DEPTH_CAMERA_PICTURES_USEC = 160;
 
             // Two depth images should be seperated by MIN_TIME_BETWEEN_DEPTH_CAMERA_PICTURES_USEC to ensure the depth imaging
             // sensor doesn't interfere with the other. To accomplish this the master depth image captures
@@ -130,6 +130,8 @@ namespace op
             std::vector<cv::Mat> mCvMats;
             std::vector<std::string> mSerialNumbers;
             k4a_device_configuration_t main_config, secondary_config;
+            const int32_t color_exposure_usec = 8000;  // somewhat reasonable default exposure time
+            const int32_t powerline_freq = 1;          // default to a 50 Hz powerline   
 
             // Camera index
             const int mCameraIndex;
@@ -227,12 +229,12 @@ namespace op
                         while (!mCloseThread)
                         {
                             // Trigger
-                            vector<k4a::capture> captures = capturer.get_synchronized_captures(secondary_config);
+                            std::vector<k4a::capture> captures = multiCapturer.get_synchronized_captures(secondary_config);
 
                             // Get frame
                             std::vector<k4a::image> imagePtrs(captures.size());
                             for (auto i = 0u; i < captures.size(); i++)
-                                imagePtrs.at(i) = captures.at(i)->get_color_image();
+                                imagePtrs.at(i) = captures.at(i).get_color_image();
 
                             // release captures
                             for (auto& capture : captures)
@@ -243,9 +245,9 @@ namespace op
                             // 检查每个相机获取的图像是否完整
                             for (auto& imagePtr : imagePtrs)
                             {
-                                if (!imagePtr->is_valid())
+                                if (!imagePtr.is_valid())
                                 {
-                                    opLog("Image incomplete" + "...", Priority::High, __LINE__, __FUNCTION__, __FILE__);
+                                    opLog("Image incomplete", Priority::High, __LINE__, __FUNCTION__, __FILE__);
                                     imagesExtracted = false;
                                     break;
                                 }
@@ -324,9 +326,9 @@ namespace op
                     bool imagesExtracted = true;
                     for (auto& imagePtr : imagePtrs)
                     {
-                        if (!imagePtr->is_valid())
+                        if (!imagePtr.is_valid())
                         {
-                            opLog("Image incomplete" + "...", Priority::High, __LINE__, __FUNCTION__, __FILE__);
+                            opLog("Image incomplete", Priority::High, __LINE__, __FUNCTION__, __FILE__);
                             imagesExtracted = false;
                             break;
                         }
@@ -450,7 +452,7 @@ namespace op
                 if (numCameras == 0)
                 {
                     // Clear camera list before releasing upImpl->mSystemPtr
-                    upImpl->device_indices.Clear();
+                    upImpl->device_indices.clear();
 
                     error("No cameras detected.", __LINE__, __FUNCTION__, __FILE__);
                 }
@@ -458,15 +460,15 @@ namespace op
                 opLog("Camera system initialized...", Priority::High);
 
                 // 开启设备
-                upImpl->multiCapturer(device_indices, color_exposure_usec, powerline_freq);
+                upImpl->multiCapturer.initCapturer(upImpl->device_indices, upImpl->color_exposure_usec, upImpl->powerline_freq);
 
                 // 相机设备初始化配置
-                k4a_device_configuration_t upImpl->main_config = get_master_config();
+                upImpl->main_config = get_master_config();
                 if (numCameras == 1) // no need to have a master cable if it's standalone
                 {
                     upImpl->main_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
                 }
-                k4a_device_configuration_t upImpl->subordinate_config = get_subordinate_config();
+                upImpl->secondary_config = get_subordinate_config();
 
                 // 开启相机
                 upImpl->multiCapturer.startCameras(upImpl->main_config, upImpl->secondary_config);
@@ -475,7 +477,7 @@ namespace op
                 opLog("\nReading (and sorting by) serial numbers...", Priority::High);
                 const bool sorted = true;
                 upImpl->mSerialNumbers = getSerialNumbers(upImpl->device_indices, sorted);
-                const auto& serialuNmbers = upImpl->mSerialNumbers;
+                const auto& serialNumbers = upImpl->mSerialNumbers;
                 for (auto i = 0u; i < serialNumbers.size(); i++)
                     opLog("Camera " + std::to_string(i) + " serial number set to "
                         + serialNumbers[i] + "...", Priority::High);
@@ -554,7 +556,7 @@ namespace op
                 {
                     // Sanity check
                     if (upImpl->mUndistortImage &&
-                        (unsigned long long) upImpl->device_indices.GetSize()
+                        (unsigned long long) upImpl->device_indices.size()
                             != upImpl->mCameraParameterReader.getNumberCameras())
                         error("The number of cameras must be the same as the INTRINSICS vector size.",
                           __LINE__, __FUNCTION__, __FILE__);
@@ -682,6 +684,8 @@ namespace op
 
                     upImpl->multiCapturer.stopCameras();
 
+                    upImpl->multiCapturer.deInitCapturer(); //close device handle manually
+
                     opLog("FLIR (Point-grey) capture completed. Releasing cameras...", Priority::High);
 
                     // Setting the class as released
@@ -698,19 +702,23 @@ namespace op
                         upImpl->device_indices.emplace_back(i);
                     }
 
-                    upImpl->multiCapturer(device_indices, color_exposure_usec, powerline_freq);
+                    upImpl->multiCapturer.initCapturer(upImpl->device_indices, upImpl->color_exposure_usec, upImpl->powerline_freq);
 
                     // Create configurations for devices
-                    k4a_device_configuration_t upImpl->main_config = get_master_config();
+                    upImpl->main_config = get_master_config();
                     if (numCameras == 1) // no need to have a master cable if it's standalone
                     {
                         upImpl->main_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
                     }
-                    k4a_device_configuration_t upImpl->subordinate_config = get_subordinate_config();
+                    upImpl->secondary_config = get_subordinate_config();
 
                     upImpl->multiCapturer.startCameras(upImpl->main_config, upImpl->secondary_config);
 
                     upImpl->multiCapturer.stopCameras();
+
+                    upImpl->multiCapturer.deInitCapturer();
+
+                    upImpl->device_indices.clear();
 
                     opLog("Cameras released! Exiting program.", Priority::High);
                 }

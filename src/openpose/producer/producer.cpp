@@ -435,7 +435,7 @@ namespace op
             else if (producerType == ProducerType::KinectCamera)
             {   
                 op::opLog("recognized your Flag !!!", op::Priority::High);
-                return std::make_shared<FlirReader>(
+                return std::make_shared<KinectReader>(
                     cameraParameterPath, cameraResolution, undistortImage, std::stoi(producerString));
             }
             // Webcam
