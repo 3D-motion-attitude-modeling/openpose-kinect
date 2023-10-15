@@ -9,7 +9,7 @@
 #include <k4a/k4a.hpp>
 
 // This is the maximum difference between when we expected an image's timestamp to be and when it actually occurred.
-constexpr std::chrono::microseconds MAX_ALLOWABLE_TIME_OFFSET_ERROR_FOR_IMAGE_TIMESTAMP(100);
+constexpr std::chrono::microseconds MAX_ALLOWABLE_TIME_OFFSET_ERROR_FOR_IMAGE_TIMESTAMP(35000);
 
 constexpr int64_t WAIT_FOR_SYNCHRONIZED_CAPTURE_TIMEOUT = 60000; //同步失败的超时时间
 
@@ -36,16 +36,21 @@ public:
 
     void initCapturer(const std::vector<uint32_t> &device_indices, int32_t color_exposure_usec, int32_t powerline_freq)
     {
+        std::cerr << "-------------- Initialize system! --------------\n";
+
         bool master_found = false;
         if (device_indices.size() == 0)
         {
-            std::cerr << "Capturer must be passed at least one camera!\n ";
+            std::cerr << "Capturer must be passed at least one camera!\n";
             exit(1);
         }
 
+        std::cout << "index all:" << device_indices.size() << std::endl;
+
+
         for (uint32_t i : device_indices)
         {
-            std::cout << "index all:" << device_indices.size() << std::endl;
+            std::cerr << i << std::endl;
 
             k4a::device next_device = k4a::device::open(i); // construct a device using this index
 
@@ -65,19 +70,20 @@ public:
 
             // We treat the first device found with a sync out cable attached as the master. If it's not supposed to be,
             // unplug the cable from it. Also, if there's only one device, just use it
-            if ((next_device.is_sync_out_connected() && !master_found) || device_indices.size() == 1)
+            if ((next_device.is_sync_out_connected() && !next_device.is_sync_in_connected() && !master_found) || device_indices.size() == 1)
             {
                 master_device = std::move(next_device);
                 master_found = true;
+                std::cerr << "Find master device!\n";
             }
             else if (!next_device.is_sync_in_connected() && !next_device.is_sync_out_connected())
             {
-                std::cerr << "Each device must have sync in or sync out connected!\n ";
+                std::cerr << "Each device must have sync in or sync out connected!\n";
                 exit(1);
             }
             else if (!next_device.is_sync_in_connected())
             {
-                std::cerr << "Non-master camera found that doesn't have the sync in port connected!\n ";
+                std::cerr << "Non-master camera found that doesn't have the sync in port connected!\n";
                 exit(1);
             }
             else
@@ -87,7 +93,7 @@ public:
         }
         if (!master_found)
         {
-            std::cerr << "No device with sync out connected found!\n ";
+            std::cerr << "No device with sync out connected found!\n";
             exit(1);
         }
     }
@@ -98,7 +104,7 @@ public:
         bool master_found = false;
         if (device_indices.size() == 0)
         {
-            std::cerr << "Capturer must be passed at least one camera!\n ";
+            std::cerr << "Capturer must be passed at least one camera!\n";
             exit(1);
         }
 
@@ -129,12 +135,12 @@ public:
             }
             else if (!next_device.is_sync_in_connected() && !next_device.is_sync_out_connected())
             {
-                std::cerr << "Each device must have sync in or sync out connected!\n ";
+                std::cerr << "Each device must have sync in or sync out connected!\n";
                 exit(1);
             }
             else if (!next_device.is_sync_in_connected())
             {
-                std::cerr << "Non-master camera found that doesn't have the sync in port connected!\n ";
+                std::cerr << "Non-master camera found that doesn't have the sync in port connected!\n";
                 exit(1);
             }
             else
@@ -144,9 +150,11 @@ public:
         }
         if (!master_found)
         {
-            std::cerr << "No device with sync out connected found!\n ";
+            std::cerr << "No device with sync out connected found!\n";
             exit(1);
         }
+
+        std::cerr << "-------------- Initialize system! --------------\n";
     }
 
     void deInitCapturer()
@@ -155,10 +163,19 @@ public:
         master_device.close();
 
         // Then close all the subordinate devices
-        for (k4a::device &d : subordinate_devices)
+        // for (k4a::device &d : subordinate_devices) // device can not be copied
+        // {
+        //     d.close();
+        // }
+
+        for (auto i = 0u; i < subordinate_devices.size(); i++)
         {
-            d.close();
+            subordinate_devices.at(i).close();
         }
+
+        subordinate_devices.clear();
+
+        std::cerr << "-------------- Deinitialize system! --------------\n";
     }
 
     ~MultiDeviceCapturer()
@@ -167,9 +184,9 @@ public:
         master_device.close();
 
         // Then close all the subordinate devices
-        for (k4a::device &d : subordinate_devices)
+        for (auto i = 0u; i < subordinate_devices.size(); i++)
         {
-            d.close();
+            subordinate_devices.at(i).close();
         }
     }
 
@@ -177,11 +194,22 @@ public:
     void startCameras(const k4a_device_configuration_t &master_config, const k4a_device_configuration_t &sub_config)
     {
         // Start by starting all of the subordinate devices. They must be started before the master!
-        for (k4a::device &d : subordinate_devices)
+        // for (k4a::device &d : subordinate_devices)
+        // {
+        //     if(!d.is_valid())
+        //     {
+        //         std::cerr << "sub_device_handle is not a valid handle\n";
+        //         exit(1);
+        //     }
+
+        //     d.start_cameras(&sub_config);
+        // }
+
+        for (auto i = 0u; i < subordinate_devices.size(); i++)
         {
-            d.start_cameras(&sub_config);
+            subordinate_devices.at(i).start_cameras(&sub_config);
         }
-        // Lastly, start the master device
+
         master_device.start_cameras(&master_config);
     }
 
@@ -274,6 +302,9 @@ public:
                         std::chrono::microseconds{ sub_config.subordinate_delay_off_master_usec } +
                         std::chrono::microseconds{ sub_config.depth_delay_off_color_usec };
                     std::chrono::microseconds sub_image_time_error = sub_image_time - expected_sub_image_time;
+
+                    // std::cout << "error : " << std::setw(6) << sub_image_time_error.count() << "us\n";
+
                     // The time error's absolute value must be within the permissible range. So, for example, if
                     // MAX_ALLOWABLE_TIME_OFFSET_ERROR_FOR_IMAGE_TIMESTAMP is 2, offsets of -2, -1, 0, 1, and -2 are
                     // permitted
@@ -312,7 +343,7 @@ public:
                         // synchronized.
                         if (i == subordinate_devices.size() - 1)
                         {
-                            log_synced_image_time(captures[0], captures[i + 1]);
+                            // log_synced_image_time(captures[0], captures[i + 1]);
                             have_synced_images = true; // now we'll finish the for loop and then exit the while loop
                         }
                     }
@@ -334,6 +365,8 @@ public:
             }
         }
         // if we've made it to here, it means that we have synchronized captures.
+
+        // std::cout << "*** get synced image! ***\n";
         return captures;
     }
 
@@ -345,9 +378,11 @@ public:
     const k4a::device &get_subordinate_device_by_index(size_t i) const
     {
         // devices[0] is the master. There are only devices.size() - 1 others. So, indices greater or equal are invalid
+        // std::cerr << "sub_device num:" << subordinate_devices.size() << " want " << i <<std::endl;
+
         if (i >= subordinate_devices.size())
         {
-            std::cerr << "Subordinate index too large!\n ";
+            std::cerr << "Subordinate index too large!\n";
             exit(1);
         }
         return subordinate_devices[i];

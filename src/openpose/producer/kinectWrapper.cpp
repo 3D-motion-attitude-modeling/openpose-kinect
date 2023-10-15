@@ -470,7 +470,7 @@ namespace op
 
                 if (numCameras > 1)
                 {
-                    for (auto i = 0u; i < numCameras; i++)
+                    for (auto i = 0u; i < (numCameras - 1); i++)
                     {
                         upImpl->mSerialNumbers.emplace_back(getSerialNumber(upImpl->multiCapturer.get_subordinate_device_by_index(i)));
                     }
